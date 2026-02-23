@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grammar Snake</title>
+
+<style>
+body{
+    margin:0;
+    background:#1565c0;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+}
+
+canvas{
+    background:#1e88e5;
+    display:block;
+    margin:15px auto;
+    border:4px solid white;
+}
+
+button{
+    padding:14px;
+    margin:5px;
+    font-size:22px;
+    border:none;
+    border-radius:10px;
+    background:#0d47a1;
+    color:white;
+}
+
+.pauseBtn{
+    background:#ffb300;
+    color:black;
+    font-size:18px;
+}
+
+.speedSection{
+    margin-top:10px;
+}
+
+input[type=range]{
+    -webkit-appearance:none;
+    width:80%;
+    height:12px;
+    background:white;
+    border-radius:6px;
+    outline:none;
+}
+
+input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    background:red;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<h2>🐍 Grammar Snake</h2>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<p id="scoreText">Score: 0</p>
+<p><b>Correct Sentence:</b> <span id="sentence"></span></p>
+<p><b>Tamil Meaning:</b> <span id="meaning"></span></p>
+
+<div>
+<button onclick="changeDir('up')">⬆</button><br>
+<button onclick="changeDir('left')">⬅</button>
+<button onclick="changeDir('down')">⬇</button>
+<button onclick="changeDir('right')">➡</button>
+<br>
+<button class="pauseBtn" onclick="togglePause()" id="pauseBtn">⏸ Pause</button>
+</div>
+
+<!-- SPEED CONTROL BELOW PAUSE -->
+<div class="speedSection">
+<h3>Speed Control</h3>
+<input type="range" min="100" max="600" value="300" id="speedSlider">
+<p>Current Speed: <span id="speedValue">300</span> ms</p>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let box=20;
+let snake=[{x:200,y:200}];
+let dir="right";
+let speed=300;
+let gameInterval;
+let paused=false;
+
+let score=0;
+let currentIndex=0;
+let correctOrder=[];
+let wordObjects=[];
+
+const sentences=[
+{
+sentence:"She is playing football",
+tamil:"அவள் கால்பந்து விளையாடுகிறாள்"
+},
+{
+sentence:"They went to school",
+tamil:"அவர்கள் பள்ளிக்கு சென்றார்கள்"
+},
+{
+sentence:"I will visit Chennai",
+tamil:"நான் சென்னை செல்வேன்"
+}
+];
+
+function shuffle(a){
+for(let i=a.length-1;i>0;i--){
+let j=Math.floor(Math.random()*(i+1));
+[a[i],a[j]]=[a[j],a[i]];
+}
+}
+
+function newSentence(){
+let random=sentences[Math.floor(Math.random()*sentences.length)];
+correctOrder=random.sentence.split(" ");
+let words=[...correctOrder];
+shuffle(words);
+
+wordObjects=[];
+words.forEach(w=>{
+wordObjects.push({
+text:w,
+x:Math.floor(Math.random()*20)*box,
+y:Math.floor(Math.random()*20)*box
+});
+});
+
+currentIndex=0;
+document.getElementById("sentence").innerText=random.sentence;
+document.getElementById("meaning").innerText=random.tamil;
+}
+
+function speak(word){
+let u=new SpeechSynthesisUtterance(word);
+u.lang="en-US";
+speechSynthesis.speak(u);
+}
+
+function draw(){
+ctx.clearRect(0,0,400,400);
+
+snake.forEach((s,i)=>{
+ctx.fillStyle=i==0?"#00ff00":"#2e7d32";
+ctx.fillRect(s.x,s.y,box,box);
+});
+
+wordObjects.forEach(obj=>{
+ctx.fillStyle="#d32f2f";
+ctx.fillRect(obj.x,obj.y,box,box);
+ctx.fillStyle="white";
+ctx.font="10px Arial";
+ctx.fillText(obj.text,obj.x+2,obj.y+15);
+});
+
+let head={x:snake[0].x,y:snake[0].y};
+
+if(dir=="right") head.x+=box;
+if(dir=="left") head.x-=box;
+if(dir=="up") head.y-=box;
+if(dir=="down") head.y+=box;
+
+for(let i=0;i<wordObjects.length;i++){
+if(head.x==wordObjects[i].x && head.y==wordObjects[i].y){
+
+if(wordObjects[i].text==correctOrder[currentIndex]){
+speak(wordObjects[i].text);
+snake.push({});
+currentIndex++;
+wordObjects.splice(i,1);
+
+if(currentIndex==correctOrder.length){
+score++;
+document.getElementById("scoreText").innerText="Score: "+score;
+alert("🎉 Sentence Completed!");
+newSentence();
+}
+}else{
+alert("❌ Wrong Word!");
+resetGame();
+}
+}
+}
+
+snake.pop();
+snake.unshift(head);
+
+if(head.x<0||head.y<0||head.x>=400||head.y>=400){
+resetGame();
+}
+}
+
+function changeDir(d){
+dir=d;
+}
+
+function togglePause(){
+if(paused){
+startGame();
+document.getElementById("pauseBtn").innerText="⏸ Pause";
+paused=false;
+}else{
+clearInterval(gameInterval);
+document.getElementById("pauseBtn").innerText="▶ Resume";
+paused=true;
+}
+}
+
+function startGame(){
+clearInterval(gameInterval);
+gameInterval=setInterval(draw,speed);
+}
+
+function resetGame(){
+snake=[{x:200,y:200}];
+score=0;
+document.getElementById("scoreText").innerText="Score: 0";
+newSentence();
+}
+
+document.getElementById("speedSlider").addEventListener("input",function(){
+speed=this.value;
+document.getElementById("speedValue").innerText=speed;
+if(!paused){
+startGame();
+}
+});
+
+newSentence();
+startGame();
+</script>
+
+</body>
+</html>
