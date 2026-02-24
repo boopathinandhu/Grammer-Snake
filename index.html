@@ -1,252 +1,249 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grammar Snake</title>
-
+<meta charset="UTF-8">
+<title>English Learning Snake Game</title>
 <style>
 body{
     text-align:center;
-    background:linear-gradient(to bottom,#0d47a1,#1976d2);
+    background:#0a2a66;
     color:white;
     font-family:Arial;
 }
 canvas{
-    background:#001f3f;
-    border:4px solid #4fc3f7;
+    background:#1e3fa3;
+    display:block;
+    margin:auto;
+    border:3px solid white;
 }
-button{
-    padding:10px 15px;
-    font-size:16px;
+button,input{
+    padding:6px;
     margin:5px;
-}
-.controls button{
-    width:60px;
-    height:60px;
-    font-size:20px;
-}
-input[type=range]{
-    width:200px;
 }
 </style>
 </head>
-
 <body>
 
-<h2>🐍 Grammar Snake</h2>
+<h2>🐍 English Learning Snake</h2>
+<div>Level: <span id="level">1</span> | Score: <span id="score">0</span></div>
 
-<canvas id="game" width="360" height="360"></canvas>
-
-<p id="levelText">Level: 1</p>
-<p id="scoreText">Score: 0</p>
-
-<p><b>Correct Sentence:</b> <span id="sentence"></span></p>
-<p><b>Tamil Meaning:</b> <span id="tamil"></span></p>
+<canvas id="game" width="400" height="400"></canvas>
 
 <div>
-<button onclick="togglePause()">⏯ Pause / Resume</button>
+<button onclick="togglePause()">Pause / Resume</button>
 </div>
 
 <div>
-<p>Speed Control</p>
-<input type="range" min="80" max="300" value="200" id="speedControl">
+Speed:
+<input type="range" id="speedControl" min="60" max="300" value="180">
 </div>
 
-<div class="controls">
-<br>
-<button onclick="setDir('UP')">↑</button><br>
-<button onclick="setDir('LEFT')">←</button>
-<button onclick="setDir('DOWN')">↓</button>
-<button onclick="setDir('RIGHT')">→</button>
-</div>
+<h3 id="sentenceDisplay"></h3>
+<h3 id="tamilDisplay"></h3>
 
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-const box=20;
-let snake=[{x:9*box,y:9*box}];
-let dir="RIGHT";
+let box=20;
+let snake=[{x:9*box,y:10*box}];
+let direction="RIGHT";
+let food={};
 let words=[];
-let wordBlocks=[];
-let currentIndex=0;
+let wordIndex=0;
 let score=0;
 let level=1;
-let sentencesCompleted=0;
-let maxPerLevel=3;
-let speed=200;
-let interval;
+let correctCount=0;
 let paused=false;
+let speed=180;
+let game;
 
-const subjects=["He","She","They","Ravi","Meena"];
-const objects=[
- {word:"to school",tamil:"பள்ளிக்கு"},
- {word:"rice",tamil:"அரிசி"},
- {word:"cricket",tamil:"கிரிக்கெட்"},
- {word:"a book",tamil:"ஒரு புத்தகம்"}
-];
+// ====== DATA ======
+
+const subjects=["He","She","They","Ravi","Meena",
+"The boy","The girl","My friend","The teacher","The students"];
 
 const verbs=[
- {base:"go",past:"went",present:"going",future:"go",
-  tamilPast:"சென்றார்",tamilPres:"சென்று கொண்டிருக்கிறார்",tamilFut:"செல்வார்"},
- {base:"eat",past:"ate",present:"eating",future:"eat",
-  tamilPast:"சாப்பிட்டார்",tamilPres:"சாப்பிட்டு கொண்டிருக்கிறார்",tamilFut:"சாப்பிடுவார்"},
- {base:"play",past:"played",present:"playing",future:"play",
-  tamilPast:"விளையாடினார்",tamilPres:"விளையாடிக் கொண்டிருக்கிறார்",tamilFut:"விளையாடுவார்"}
+{base:"go",past:"went",present:"going",future:"go",
+object:"to school",tPast:"சென்றார்",tPres:"சென்று கொண்டிருக்கிறார்",tFut:"செல்வார்",tObj:"பள்ளிக்கு"},
+{base:"eat",past:"ate",present:"eating",future:"eat",
+object:"rice",tPast:"சாப்பிட்டார்",tPres:"சாப்பிட்டு கொண்டிருக்கிறார்",tFut:"சாப்பிடுவார்",tObj:"அரிசி"},
+{base:"play",past:"played",present:"playing",future:"play",
+object:"cricket",tPast:"விளையாடினார்",tPres:"விளையாடிக் கொண்டிருக்கிறார்",tFut:"விளையாடுவார்",tObj:"கிரிக்கெட்"},
+{base:"read",past:"read",present:"reading",future:"read",
+object:"a book",tPast:"படித்தார்",tPres:"படித்து கொண்டிருக்கிறார்",tFut:"படிப்பார்",tObj:"ஒரு புத்தகம்"},
+{base:"write",past:"wrote",present:"writing",future:"write",
+object:"a letter",tPast:"எழுதியார்",tPres:"எழுதி கொண்டிருக்கிறார்",tFut:"எழுதுவார்",tObj:"ஒரு கடிதம்"},
+{base:"buy",past:"bought",present:"buying",future:"buy",
+object:"a pen",tPast:"வாங்கினார்",tPres:"வாங்கிக் கொண்டிருக்கிறார்",tFut:"வாங்குவார்",tObj:"ஒரு பேனா"},
+{base:"watch",past:"watched",present:"watching",future:"watch",
+object:"a movie",tPast:"பார்த்தார்",tPres:"பார்த்து கொண்டிருக்கிறார்",tFut:"பார்ப்பார்",tObj:"ஒரு திரைப்படம்"}
 ];
 
+const times=["","yesterday","last night","in the morning","at home"];
+
+// ====== GENERATE SENTENCE ======
+
 function generateSentence(){
- let sub=subjects[Math.floor(Math.random()*subjects.length)];
- let verb=verbs[Math.floor(Math.random()*verbs.length)];
- let obj=objects[Math.floor(Math.random()*objects.length)];
- let english="",tamil="";
+let s=subjects[Math.floor(Math.random()*subjects.length)];
+let v=verbs[Math.floor(Math.random()*verbs.length)];
+let t=times[Math.floor(Math.random()*times.length)];
 
- if(level===1){
-  english=sub+" "+verb.past+" "+obj.word;
-  tamil=sub+" "+obj.tamil+" "+verb.tamilPast;
- }
- if(level===2){
-  english=sub+" is "+verb.present+" "+obj.word;
-  tamil=sub+" "+obj.tamil+" "+verb.tamilPres;
- }
- if(level===3){
-  english=sub+" will "+verb.future+" "+obj.word;
-  tamil=sub+" "+obj.tamil+" "+verb.tamilFut;
- }
- if(level===4){
-  english=obj.word+" was "+verb.past+" by "+sub;
-  tamil=obj.tamil+" "+verb.tamilPast+" "+sub+" மூலம்";
- }
- if(level===5){
-  english=sub+" said that he was tired";
-  tamil=sub+" அவர் சோர்வாக இருந்தார் என்று கூறினார்";
- }
- if(level===6){
-  english="If he studies he will pass";
-  tamil="அவர் படித்தால் தேர்ச்சி பெறுவார்";
- }
+let english="",tamil="";
 
- return {sentence:english,tamil:tamil};
+if(level===1){
+english=`${s} ${v.past} ${v.object} ${t}`;
+tamil=`${s} ${v.tObj} ${v.tPast}`;
+}
+if(level===2){
+english=`${s} is ${v.present} ${v.object} ${t}`;
+tamil=`${s} ${v.tObj} ${v.tPres}`;
+}
+if(level===3){
+english=`${s} will ${v.future} ${v.object} ${t}`;
+tamil=`${s} ${v.tObj} ${v.tFut}`;
+}
+if(level===4){
+english=`${v.object} was ${v.past} by ${s}`;
+tamil=`${v.tObj} ${v.tPast} ${s} மூலம்`;
+}
+if(level===5){
+english=`${s} said that he ${v.past} ${v.object}`;
+tamil=`${s} அவர் ${v.tObj} ${v.tPast} என்று கூறினார்`;
+}
+if(level===6){
+english=`If ${s} ${v.base}, he will ${v.future} ${v.object}`;
+tamil=`${s} ${v.base} என்றால் ${v.tObj} ${v.tFut}`;
 }
 
-function newSentence(){
- let data=generateSentence();
- words=data.sentence.split(" ");
- document.getElementById("sentence").innerText=data.sentence;
- document.getElementById("tamil").innerText=data.tamil;
- currentIndex=0;
- createWordBlocks();
+english=english.replace(/\s+/g," ").trim();
+
+return {sentence:english,tamil:tamil};
 }
 
-function createWordBlocks(){
- wordBlocks=[];
- let shuffled=[...words].sort(()=>Math.random()-0.5);
- shuffled.forEach(word=>{
-  wordBlocks.push({
-   word:word,
-   x:Math.floor(Math.random()*18)*box,
-   y:Math.floor(Math.random()*18)*box
-  });
- });
+// ====== START NEW ROUND ======
+
+function newRound(){
+let data=generateSentence();
+document.getElementById("sentenceDisplay").innerText=data.sentence;
+document.getElementById("tamilDisplay").innerText=data.tamil;
+
+words=data.sentence.split(" ");
+words=shuffle(words);
+wordIndex=0;
+placeFood();
 }
 
+// ====== SHUFFLE ======
+function shuffle(arr){
+return arr.sort(()=>Math.random()-0.5);
+}
+
+// ====== PLACE FOOD ======
+function placeFood(){
+food={
+x:Math.floor(Math.random()*19+1)*box,
+y:Math.floor(Math.random()*19+1)*box
+};
+}
+
+// ====== DRAW GAME ======
 function draw(){
- ctx.clearRect(0,0,canvas.width,canvas.height);
+if(paused) return;
 
- snake.forEach((s,i)=>{
-  ctx.fillStyle=i==0?"yellow":"lime";
-  ctx.fillRect(s.x,s.y,box,box);
- });
+ctx.fillStyle="#1e3fa3";
+ctx.fillRect(0,0,400,400);
 
- ctx.fillStyle="red";
- wordBlocks.forEach(w=>{
-  ctx.fillRect(w.x,w.y,box,box);
-  ctx.fillStyle="white";
-  ctx.fillText(w.word,w.x+2,w.y+15);
-  ctx.fillStyle="red";
- });
+// draw snake
+for(let i=0;i<snake.length;i++){
+ctx.fillStyle=i==0?"lime":"green";
+ctx.fillRect(snake[i].x,snake[i].y,box,box);
 }
 
-function move(){
- if(paused) return;
+// draw word
+ctx.fillStyle="yellow";
+ctx.font="14px Arial";
+ctx.fillText(words[wordIndex],food.x+2,food.y+15);
 
- let head={...snake[0]};
- if(dir==="UP") head.y-=box;
- if(dir==="DOWN") head.y+=box;
- if(dir==="LEFT") head.x-=box;
- if(dir==="RIGHT") head.x+=box;
+let headX=snake[0].x;
+let headY=snake[0].y;
 
- if(head.x<0||head.y<0||head.x>=360||head.y>=360){
-  alert("Game Over");
-  location.reload();
- }
+if(direction=="LEFT") headX-=box;
+if(direction=="RIGHT") headX+=box;
+if(direction=="UP") headY-=box;
+if(direction=="DOWN") headY+=box;
 
- snake.unshift(head);
+// eat word
+if(headX==food.x && headY==food.y){
 
- let correctWord=words[currentIndex];
- let caught=false;
+let correctWord=document.getElementById("sentenceDisplay").innerText.split(" ")[wordIndex];
 
- wordBlocks.forEach((w,i)=>{
-  if(head.x===w.x && head.y===w.y){
-   if(w.word===correctWord){
-    speechSynthesis.speak(new SpeechSynthesisUtterance(w.word));
-    currentIndex++;
-    wordBlocks.splice(i,1);
-    caught=true;
-   }else{
-    alert("Wrong word! Game Over");
-    location.reload();
-   }
-  }
- });
+if(words[wordIndex]===correctWord){
+speech(words[wordIndex]);
+wordIndex++;
+score+=10;
+document.getElementById("score").innerText=score;
 
- if(!caught) snake.pop();
-
- if(currentIndex===words.length){
-  score++;
-  sentencesCompleted++;
-  document.getElementById("scoreText").innerText="Score: "+score;
-
-  if(sentencesCompleted>=maxPerLevel){
-   level++;
-   sentencesCompleted=0;
-   alert("🔥 Level Up! Level "+level);
-  }
-
-  document.getElementById("levelText").innerText="Level: "+level;
-  snake=[{x:9*box,y:9*box}];
-  newSentence();
- }
+if(wordIndex>=words.length){
+correctCount++;
+if(correctCount>=3){
+level++;
+if(level>6) level=6;
+correctCount=0;
+}
+document.getElementById("level").innerText=level;
+newRound();
+}
+}else{
+alert("Wrong order!");
+location.reload();
 }
 
-function gameLoop(){
- move();
- draw();
+placeFood();
+}else{
+snake.pop();
 }
 
-function setDir(d){ dir=d; }
+let newHead={x:headX,y:headY};
+snake.unshift(newHead);
 
-function togglePause(){
- paused=!paused;
+// wall crash
+if(headX<0||headY<0||headX>=400||headY>=400){
+alert("Game Over");
+location.reload();
+}
 }
 
-document.getElementById("speedControl").addEventListener("input",function(){
- speed=this.value;
- clearInterval(interval);
- interval=setInterval(gameLoop,speed);
-});
+// ====== SPEECH ======
+function speech(word){
+let u=new SpeechSynthesisUtterance(word);
+speechSynthesis.speak(u);
+}
 
+// ====== CONTROLS ======
 document.addEventListener("keydown",e=>{
- if(e.key==="ArrowUp") dir="UP";
- if(e.key==="ArrowDown") dir="DOWN";
- if(e.key==="ArrowLeft") dir="LEFT";
- if(e.key==="ArrowRight") dir="RIGHT";
+if(e.keyCode==37) direction="LEFT";
+if(e.keyCode==38) direction="UP";
+if(e.keyCode==39) direction="RIGHT";
+if(e.keyCode==40) direction="DOWN";
 });
 
-newSentence();
-interval=setInterval(gameLoop,speed);
+// ====== PAUSE ======
+function togglePause(){
+paused=!paused;
+}
+
+// ====== SPEED CONTROL ======
+document.getElementById("speedControl").addEventListener("input",function(){
+speed=this.value;
+clearInterval(game);
+game=setInterval(draw,speed);
+});
+
+// ====== START ======
+newRound();
+game=setInterval(draw,speed);
 
 </script>
-
 </body>
 </html>
