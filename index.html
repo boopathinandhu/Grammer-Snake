@@ -1,137 +1,170 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>English Snake Game</title>
-<style>
-body{
-    margin:0;
-    text-align:center;
-    font-family:Arial;
-    background:linear-gradient(135deg,#0072ff,#00c6ff);
-    color:white;
-}
-canvas{
-    background:#001f3f;
-    border:4px solid #00ffff;
-    margin-top:20px;
-}
-button{
-    padding:10px 20px;
-    font-size:16px;
-    margin:10px;
-}
-</style>
+    <meta charset="UTF-8">
+    <title>English Snake Game - Levels</title>
+    <style>
+        body { margin: 0; text-align: center; font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: white; }
+        canvas { background: #1e293b; border: 4px solid #38bdf8; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .control-panel { background: #1e293b; padding: 15px; margin: 10px auto; width: 400px; border-radius: 10px; border: 1px solid #334155; }
+        button, select { padding: 10px 15px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px; margin: 5px; }
+        button:hover { background: #2563eb; }
+        #status { font-weight: bold; color: #facc15; margin-top: 10px; }
+        .target-box { font-size: 1.2em; color: #4ade80; font-weight: bold; }
+        .meaning-box { color: #cbd5e1; font-size: 0.9em; margin-top: 5px; }
+    </style>
 </head>
 <body>
 
-<h2>🐍 English Sentence Snake</h2>
+<h2>🐍 English Grammar Snake</h2>
 
-<button onclick="startGame()">Start</button>
-<p>Score: <span id="score">0</span></p>
+<div class="control-panel">
+    <label for="levelSelect"><b>Choose Level: </b></label>
+    <select id="levelSelect">
+        <option value="1">Level 1: Parts of Speech</option>
+        <option value="2">Level 2: Present Tenses</option>
+        <option value="3">Level 3: Past Tenses</option>
+        <option value="4">Level 4: Future Tenses</option>
+        <option value="5">Level 5: Active/Passive Voice</option>
+        <option value="6">Level 6: Direct/Indirect Speech</option>
+    </select>
+    <button onclick="initGame()">Start Game</button>
+    <p>Score: <span id="score">0</span></p>
+    <p><b>Target Word:</b> <span id="target-word" class="target-box">---</span></p>
+</div>
 
 <canvas id="game" width="400" height="400"></canvas>
 
-<p><b>Correct Sentence:</b> <span id="sentence"></span></p>
-<p><b>Tamil Meaning:</b> <span id="tamil"></span></p>
+<div class="control-panel">
+    <p><b>Full Sentence:</b> <span id="sentence">---</span></p>
+    <p class="meaning-box"><b>Tamil:</b> <span id="tamil">---</span></p>
+</div>
 
-<!-- LOAD SENTENCES FIRST -->
 <script src="Sentences.js"></script>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let snake = [{x:200,y:200}];
 let size = 20;
-let dx = size;
-let dy = 0;
-let words = [];
-let currentSentence = [];
-let score = 0;
-let indexWord = 0;
+let snake, dx, dy, words, currentSentence, targetWords, score, indexWord, gameInterval;
 
-function startGame(){
+function initGame() {
+    if (gameInterval) clearInterval(gameInterval);
+    snake = [{x: 200, y: 200}];
+    dx = size; dy = 0;
     score = 0;
+    indexWord = 0;
     document.getElementById("score").innerText = score;
     loadSentence();
-    setInterval(draw,150);
+    gameInterval = setInterval(draw, 180); // Speed of the snake
 }
 
-function loadSentence(){
-    let random = sentenceData[Math.floor(Math.random()*sentenceData.length)];
-    currentSentence = random.english.split(" ");
+function loadSentence() {
+    // Get the selected level from the dropdown
+    let currentLevel = document.getElementById("levelSelect").value;
+    let levelSentences = sentenceData[currentLevel];
+    
+    // Pick a random sentence from that level
+    let random = levelSentences[Math.floor(Math.random() * levelSentences.length)];
+    targetWords = random.english.split(" ");
+    
     document.getElementById("sentence").innerText = random.english;
     document.getElementById("tamil").innerText = random.tamil;
 
     words = [];
-    let shuffled = [...currentSentence].sort(()=>Math.random()-0.5);
-    shuffled.forEach(word=>{
-        words.push({
-            text:word,
-            x:Math.floor(Math.random()*18)*size,
-            y:Math.floor(Math.random()*18)*size
-        });
-    });
     indexWord = 0;
+    updateTargetUI();
+
+    // Scatter words around the canvas
+    let shuffled = [...targetWords].sort(() => Math.random() - 0.5);
+    shuffled.forEach(word => {
+        // Find an empty spot so words don't spawn exactly on top of each other
+        let newX, newY, overlapping;
+        do {
+            newX = Math.floor(Math.random() * 18 + 1) * size;
+            newY = Math.floor(Math.random() * 18 + 1) * size;
+            overlapping = words.some(w => w.x === newX && w.y === newY);
+        } while (overlapping);
+
+        words.push({ text: word, x: newX, y: newY });
+    });
 }
 
-function draw(){
-    ctx.clearRect(0,0,400,400);
-
-    snake[0].x += dx;
-    snake[0].y += dy;
-
-    ctx.fillStyle="yellow";
-    snake.forEach(part=>{
-        ctx.fillRect(part.x,part.y,size,size);
-    });
-
-    ctx.fillStyle="red";
-    words.forEach(w=>{
-        ctx.fillRect(w.x,w.y,size,size);
-        ctx.fillStyle="white";
-        ctx.fillText(w.text,w.x+2,w.y+15);
-        ctx.fillStyle="red";
-    });
-
-    checkCollision();
+function updateTargetUI() {
+    document.getElementById("target-word").innerText = targetWords[indexWord] || "Sentence Complete!";
 }
 
-function checkCollision(){
-    let head = snake[0];
-    if(indexWord < currentSentence.length){
-        let target = currentSentence[indexWord];
-        words.forEach((w,i)=>{
-            if(head.x==w.x && head.y==w.y){
-                if(w.text===target){
-                    words.splice(i,1);
-                    indexWord++;
-                    score++;
-                    document.getElementById("score").innerText = score;
-                    speak(w.text);
-                    if(indexWord==currentSentence.length){
-                        loadSentence();
-                    }
-                }
-            }
-        });
+function draw() {
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+    
+    // Check Boundary & Self Collision
+    if (head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 400 || snake.some(p => p.x === head.x && p.y === head.y)) {
+        clearInterval(gameInterval);
+        alert("Game Over! Final Score: " + score + "\nClick Start Game to try again.");
+        return;
     }
+
+    snake.unshift(head); 
+    let ateWord = false;
+
+    // Check Word Collision
+    words.forEach((w, i) => {
+        if (head.x === w.x && head.y === w.y) {
+            if (w.text === targetWords[indexWord]) {
+                words.splice(i, 1);
+                indexWord++;
+                score += 10;
+                document.getElementById("score").innerText = score;
+                speak(w.text);
+                ateWord = true;
+                updateTargetUI();
+                
+                // If sentence is finished, load the next one
+                if (indexWord === targetWords.length) {
+                    setTimeout(loadSentence, 500); // slight pause before next sentence
+                }
+            } else {
+                score = Math.max(0, score - 5); // Penalty for wrong word
+                document.getElementById("score").innerText = score;
+            }
+        }
+    });
+
+    if (!ateWord) snake.pop(); 
+
+    // Render Canvas
+    ctx.clearRect(0, 0, 400, 400);
+    
+    // Draw Snake
+    snake.forEach((part, i) => {
+        ctx.fillStyle = i === 0 ? "#38bdf8" : "#0284c7";
+        ctx.fillRect(part.x, part.y, size - 2, size - 2);
+    });
+
+    // Draw Words
+    words.forEach(w => {
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(w.x, w.y, size - 2, size - 2);
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.fillText(w.text, w.x, w.y - 4);
+    });
 }
 
-function speak(word){
+function speak(word) {
     let speech = new SpeechSynthesisUtterance(word);
-    speech.lang="en-US";
-    speechSynthesis.speak(speech);
+    speech.lang = "en-US";
+    window.speechSynthesis.speak(speech);
 }
 
-document.addEventListener("keydown",function(e){
-    if(e.key==="ArrowUp"){dx=0;dy=-size;}
-    if(e.key==="ArrowDown"){dx=0;dy=size;}
-    if(e.key==="ArrowLeft"){dx=-size;dy=0;}
-    if(e.key==="ArrowRight"){dx=size;dy=0;}
+// Arrow Key Controls
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -size; e.preventDefault(); }
+    if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = size; e.preventDefault(); }
+    if (e.key === "ArrowLeft" && dx === 0) { dx = -size; dy = 0; e.preventDefault(); }
+    if (e.key === "ArrowRight" && dx === 0) { dx = size; dy = 0; e.preventDefault(); }
 });
 </script>
-
 </body>
 </html>
