@@ -1,25 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>English Snake Game - Levels</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English Snake Game</title>
     <style>
-        body { margin: 0; text-align: center; font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: white; }
-        canvas { background: #1e293b; border: 4px solid #38bdf8; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .control-panel { background: #1e293b; padding: 15px; margin: 10px auto; width: 400px; border-radius: 10px; border: 1px solid #334155; }
-        button, select { padding: 10px 15px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 5px; margin: 5px; }
-        button:hover { background: #2563eb; }
-        #status { font-weight: bold; color: #facc15; margin-top: 10px; }
-        .target-box { font-size: 1.2em; color: #4ade80; font-weight: bold; }
+        body { 
+            margin: 0; 
+            text-align: center; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: #0f172a; 
+            color: white; 
+            touch-action: none; /* Prevents screen scrolling while playing */
+        }
+        canvas { 
+            background: #1e293b; 
+            border: 4px solid #38bdf8; 
+            border-radius: 8px; 
+            margin-top: 5px; 
+            max-width: 95%; /* Fits mobile screen */
+        }
+        .control-panel { 
+            background: #1e293b; 
+            padding: 10px; 
+            margin: 5px auto; 
+            width: 90%; 
+            max-width: 400px;
+            border-radius: 10px; 
+            border: 1px solid #334155; 
+        }
+        button, select { 
+            padding: 8px 12px; 
+            font-size: 16px; 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            margin: 5px; 
+        }
+        .target-box { color: #4ade80; font-weight: bold; font-size: 1.1em;}
         .meaning-box { color: #cbd5e1; font-size: 0.9em; margin-top: 5px; }
+        
+        /* Mobile Controls Styling */
+        .mobile-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .row { display: flex; gap: 15px; }
+        .d-pad {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px solid #38bdf8;
+        }
+        .d-pad:active { background: #38bdf8; }
     </style>
 </head>
 <body>
 
-<h2>🐍 English Grammar Snake</h2>
+<h3>🐍 English Grammar Snake</h3>
 
 <div class="control-panel">
-    <label for="levelSelect"><b>Choose Level: </b></label>
     <select id="levelSelect">
         <option value="1">Level 1: Parts of Speech</option>
         <option value="2">Level 2: Present Tenses</option>
@@ -28,16 +74,25 @@
         <option value="5">Level 5: Active/Passive Voice</option>
         <option value="6">Level 6: Direct/Indirect Speech</option>
     </select>
-    <button onclick="initGame()">Start Game</button>
-    <p>Score: <span id="score">0</span></p>
-    <p><b>Target Word:</b> <span id="target-word" class="target-box">---</span></p>
+    <button onclick="initGame()">Start</button>
+    <span style="margin-left:10px;">Score: <span id="score" style="color:#facc15; font-weight:bold;">0</span></span>
+    <p style="margin: 5px 0;"><b>Find:</b> <span id="target-word" class="target-box">---</span></p>
 </div>
 
-<canvas id="game" width="400" height="400"></canvas>
+<canvas id="game" width="340" height="340"></canvas>
 
-<div class="control-panel">
-    <p><b>Full Sentence:</b> <span id="sentence">---</span></p>
-    <p class="meaning-box"><b>Tamil:</b> <span id="tamil">---</span></p>
+<div class="mobile-controls">
+    <button class="d-pad" onclick="changeDir('up')">⬆️</button>
+    <div class="row">
+        <button class="d-pad" onclick="changeDir('left')">⬅️</button>
+        <button class="d-pad" onclick="changeDir('down')">⬇️</button>
+        <button class="d-pad" onclick="changeDir('right')">➡️</button>
+    </div>
+</div>
+
+<div class="control-panel" style="margin-top:10px;">
+    <p style="margin: 5px 0;"><b>Sentence:</b> <span id="sentence">---</span></p>
+    <p class="meaning-box" style="margin: 5px 0;"><b>Tamil:</b> <span id="tamil">---</span></p>
 </div>
 
 <script src="Sentences.js"></script>
@@ -51,21 +106,25 @@ let snake, dx, dy, words, currentSentence, targetWords, score, indexWord, gameIn
 
 function initGame() {
     if (gameInterval) clearInterval(gameInterval);
-    snake = [{x: 200, y: 200}];
+    snake = [{x: 160, y: 160}];
     dx = size; dy = 0;
     score = 0;
     indexWord = 0;
     document.getElementById("score").innerText = score;
     loadSentence();
-    gameInterval = setInterval(draw, 180); // Speed of the snake
+    gameInterval = setInterval(draw, 180);
 }
 
 function loadSentence() {
-    // Get the selected level from the dropdown
     let currentLevel = document.getElementById("levelSelect").value;
-    let levelSentences = sentenceData[currentLevel];
     
-    // Pick a random sentence from that level
+    // Check if sentenceData loaded correctly from Sentences.js
+    if (typeof sentenceData === 'undefined') {
+        alert("Error: Sentences.js did not load! Check file names and GitHub cache.");
+        return;
+    }
+
+    let levelSentences = sentenceData[currentLevel];
     let random = levelSentences[Math.floor(Math.random() * levelSentences.length)];
     targetWords = random.english.split(" ");
     
@@ -76,39 +135,42 @@ function loadSentence() {
     indexWord = 0;
     updateTargetUI();
 
-    // Scatter words around the canvas
     let shuffled = [...targetWords].sort(() => Math.random() - 0.5);
     shuffled.forEach(word => {
-        // Find an empty spot so words don't spawn exactly on top of each other
         let newX, newY, overlapping;
         do {
-            newX = Math.floor(Math.random() * 18 + 1) * size;
-            newY = Math.floor(Math.random() * 18 + 1) * size;
+            newX = Math.floor(Math.random() * 16) * size;
+            newY = Math.floor(Math.random() * 16) * size;
             overlapping = words.some(w => w.x === newX && w.y === newY);
         } while (overlapping);
-
         words.push({ text: word, x: newX, y: newY });
     });
 }
 
 function updateTargetUI() {
-    document.getElementById("target-word").innerText = targetWords[indexWord] || "Sentence Complete!";
+    document.getElementById("target-word").innerText = targetWords[indexWord] || "Done!";
+}
+
+// Mobile Button Controller
+function changeDir(direction) {
+    if (direction === 'up' && dy === 0) { dx = 0; dy = -size; }
+    if (direction === 'down' && dy === 0) { dx = 0; dy = size; }
+    if (direction === 'left' && dx === 0) { dx = -size; dy = 0; }
+    if (direction === 'right' && dx === 0) { dx = size; dy = 0; }
 }
 
 function draw() {
     const head = { x: snake[0].x + dx, y: snake[0].y + dy };
     
-    // Check Boundary & Self Collision
-    if (head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 400 || snake.some(p => p.x === head.x && p.y === head.y)) {
+    if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || snake.some(p => p.x === head.x && p.y === head.y)) {
         clearInterval(gameInterval);
-        alert("Game Over! Final Score: " + score + "\nClick Start Game to try again.");
+        alert("Game Over! Score: " + score);
         return;
     }
 
     snake.unshift(head); 
     let ateWord = false;
 
-    // Check Word Collision
     words.forEach((w, i) => {
         if (head.x === w.x && head.y === w.y) {
             if (w.text === targetWords[indexWord]) {
@@ -120,12 +182,11 @@ function draw() {
                 ateWord = true;
                 updateTargetUI();
                 
-                // If sentence is finished, load the next one
                 if (indexWord === targetWords.length) {
-                    setTimeout(loadSentence, 500); // slight pause before next sentence
+                    setTimeout(loadSentence, 500);
                 }
             } else {
-                score = Math.max(0, score - 5); // Penalty for wrong word
+                score = Math.max(0, score - 5);
                 document.getElementById("score").innerText = score;
             }
         }
@@ -133,16 +194,13 @@ function draw() {
 
     if (!ateWord) snake.pop(); 
 
-    // Render Canvas
-    ctx.clearRect(0, 0, 400, 400);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw Snake
     snake.forEach((part, i) => {
         ctx.fillStyle = i === 0 ? "#38bdf8" : "#0284c7";
         ctx.fillRect(part.x, part.y, size - 2, size - 2);
     });
 
-    // Draw Words
     words.forEach(w => {
         ctx.fillStyle = "#ef4444";
         ctx.fillRect(w.x, w.y, size - 2, size - 2);
@@ -158,12 +216,13 @@ function speak(word) {
     window.speechSynthesis.speak(speech);
 }
 
-// Arrow Key Controls
+// Keep keyboard support for PC testing
 document.addEventListener("keydown", e => {
-    if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -size; e.preventDefault(); }
-    if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = size; e.preventDefault(); }
-    if (e.key === "ArrowLeft" && dx === 0) { dx = -size; dy = 0; e.preventDefault(); }
-    if (e.key === "ArrowRight" && dx === 0) { dx = size; dy = 0; e.preventDefault(); }
+    if (e.key === "ArrowUp") changeDir('up');
+    if (e.key === "ArrowDown") changeDir('down');
+    if (e.key === "ArrowLeft") changeDir('left');
+    if (e.key === "ArrowRight") changeDir('right');
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) e.preventDefault();
 });
 </script>
 </body>
