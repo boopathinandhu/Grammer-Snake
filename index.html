@@ -18,7 +18,7 @@
             border: 4px solid #38bdf8; 
             border-radius: 8px; 
             margin-top: 5px; 
-            max-width: 95%; /* Fits mobile screen */
+            max-width: 95%;
         }
         .control-panel { 
             background: #1e293b; 
@@ -29,18 +29,33 @@
             border-radius: 10px; 
             border: 1px solid #334155; 
         }
+        .control-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
         button, select { 
             padding: 8px 12px; 
             font-size: 16px; 
             background: #3b82f6; 
             color: white; 
             border: none; 
-            border-radius: 5px; 
-            margin: 5px; 
+            border-radius: 5px;
+            cursor: pointer;
         }
+        button:active { background: #2563eb; }
+        .pause-btn { background: #f59e0b; }
+        .pause-btn:active { background: #d97706; }
+        
         .target-box { color: #4ade80; font-weight: bold; font-size: 1.1em;}
         .meaning-box { color: #cbd5e1; font-size: 0.9em; margin-top: 5px; }
         
+        /* Speed Slider Styling */
+        input[type=range] { width: 120px; accent-color: #38bdf8; }
+
         /* Mobile Controls Styling */
         .mobile-controls {
             margin-top: 10px;
@@ -66,17 +81,30 @@
 <h3>🐍 English Grammar Snake</h3>
 
 <div class="control-panel">
-    <select id="levelSelect">
-        <option value="1">Level 1: Parts of Speech</option>
-        <option value="2">Level 2: Present Tenses</option>
-        <option value="3">Level 3: Past Tenses</option>
-        <option value="4">Level 4: Future Tenses</option>
-        <option value="5">Level 5: Active/Passive Voice</option>
-        <option value="6">Level 6: Direct/Indirect Speech</option>
-    </select>
-    <button onclick="initGame()">Start</button>
-    <span style="margin-left:10px;">Score: <span id="score" style="color:#facc15; font-weight:bold;">0</span></span>
-    <p style="margin: 5px 0;"><b>Find:</b> <span id="target-word" class="target-box">---</span></p>
+    <div class="control-row">
+        <select id="levelSelect">
+            <option value="1">Level 1: Parts of Speech</option>
+            <option value="2">Level 2: Present Tenses</option>
+            <option value="3">Level 3: Past Tenses</option>
+            <option value="4">Level 4: Future Tenses</option>
+            <option value="5">Level 5: Active/Passive Voice</option>
+            <option value="6">Level 6: Direct/Indirect Speech</option>
+        </select>
+    </div>
+    
+    <div class="control-row">
+        <button onclick="initGame()">Start</button>
+        <button id="pauseBtn" class="pause-btn" onclick="togglePause()">Pause</button>
+    </div>
+    
+    <div class="control-row">
+        <label>Speed: 🐢 <input type="range" id="speedSlider" min="1" max="10" value="5" oninput="updateSpeed()"> 🐇</label>
+    </div>
+
+    <div class="control-row" style="justify-content: space-between; padding: 0 10px;">
+        <span>Score: <span id="score" style="color:#facc15; font-weight:bold;">0</span></span>
+        <span><b>Find:</b> <span id="target-word" class="target-box">---</span></span>
+    </div>
 </div>
 
 <canvas id="game" width="340" height="340"></canvas>
@@ -102,7 +130,34 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let size = 20;
-let snake, dx, dy, words, currentSentence, targetWords, score, indexWord, gameInterval;
+let snake, dx, dy, words, targetWords, score, indexWord, gameInterval;
+let isPaused = false;
+let currentSpeedMs = 180; // Default starting speed
+
+function updateSpeed() {
+    let speedVal = document.getElementById("speedSlider").value;
+    // Map slider 1-10 to milliseconds (1 = 325ms, 10 = 100ms)
+    currentSpeedMs = 350 - (speedVal * 25);
+    
+    if (gameInterval && !isPaused) {
+        clearInterval(gameInterval);
+        gameInterval = setInterval(draw, currentSpeedMs);
+    }
+}
+
+function togglePause() {
+    if (!snake) return; // Don't pause if game hasn't started
+    
+    if (isPaused) {
+        isPaused = false;
+        document.getElementById("pauseBtn").innerText = "Pause";
+        gameInterval = setInterval(draw, currentSpeedMs);
+    } else {
+        isPaused = true;
+        document.getElementById("pauseBtn").innerText = "Resume";
+        clearInterval(gameInterval);
+    }
+}
 
 function initGame() {
     if (gameInterval) clearInterval(gameInterval);
@@ -110,15 +165,18 @@ function initGame() {
     dx = size; dy = 0;
     score = 0;
     indexWord = 0;
+    isPaused = false;
+    document.getElementById("pauseBtn").innerText = "Pause";
     document.getElementById("score").innerText = score;
+    updateSpeed(); // Make sure speed matches slider initially
+    
     loadSentence();
-    gameInterval = setInterval(draw, 180);
+    gameInterval = setInterval(draw, currentSpeedMs);
 }
 
 function loadSentence() {
     let currentLevel = document.getElementById("levelSelect").value;
     
-    // Check if sentenceData loaded correctly from Sentences.js
     if (typeof sentenceData === 'undefined') {
         alert("Error: Sentences.js did not load! Check file names and GitHub cache.");
         return;
@@ -162,18 +220,29 @@ function changeDir(direction) {
 function draw() {
     const head = { x: snake[0].x + dx, y: snake[0].y + dy };
     
-    if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || snake.some(p => p.x === head.x && p.y === head.y)) {
+    // --- BORDER WRAP AROUND LOGIC ---
+    if (head.x < 0) head.x = canvas.width - size;
+    else if (head.x >= canvas.width) head.x = 0;
+    
+    if (head.y < 0) head.y = canvas.height - size;
+    else if (head.y >= canvas.height) head.y = 0;
+
+    // --- SELF COLLISION LOGIC ---
+    if (snake.some(p => p.x === head.x && p.y === head.y)) {
         clearInterval(gameInterval);
-        alert("Game Over! Score: " + score);
+        alert("Game Over! You crashed into yourself! Score: " + score);
         return;
     }
 
     snake.unshift(head); 
     let ateWord = false;
+    let hitWrongWord = false;
 
+    // --- WORD COLLISION LOGIC ---
     words.forEach((w, i) => {
         if (head.x === w.x && head.y === w.y) {
             if (w.text === targetWords[indexWord]) {
+                // Correct Word
                 words.splice(i, 1);
                 indexWord++;
                 score += 10;
@@ -186,21 +255,30 @@ function draw() {
                     setTimeout(loadSentence, 500);
                 }
             } else {
-                score = Math.max(0, score - 5);
-                document.getElementById("score").innerText = score;
+                // Wrong Word
+                hitWrongWord = true;
             }
         }
     });
 
+    if (hitWrongWord) {
+        clearInterval(gameInterval);
+        alert("Game Over! You ate the wrong word. Final Score: " + score);
+        return;
+    }
+
     if (!ateWord) snake.pop(); 
 
+    // Render Graphics
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Draw Snake
     snake.forEach((part, i) => {
         ctx.fillStyle = i === 0 ? "#38bdf8" : "#0284c7";
         ctx.fillRect(part.x, part.y, size - 2, size - 2);
     });
 
+    // Draw Words
     words.forEach(w => {
         ctx.fillStyle = "#ef4444";
         ctx.fillRect(w.x, w.y, size - 2, size - 2);
