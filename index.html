@@ -1,111 +1,226 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>English Learning Game</title>
-    <style>
-        body {
-            font-family: Arial;
-            text-align: center;
-            background: linear-gradient(to right, #4facfe, #00f2fe);
-            color: white;
-            padding: 20px;
-        }
+<meta charset="UTF-8">
+<title>Grammar Snake - 6 Levels</title>
+<style>
+body{
+margin:0;
+text-align:center;
+font-family:Arial;
+background:linear-gradient(to bottom,#1e88e5,#00acc1);
+color:white;
+}
+h1{margin-top:15px;}
 
-        .box {
-            background: white;
-            color: black;
-            padding: 20px;
-            margin: auto;
-            width: 80%;
-            max-width: 600px;
-            border-radius: 10px;
-        }
+canvas{
+background:#0d2b45;
+border:6px solid #00e5ff;
+display:block;
+margin:10px auto;
+}
 
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-        }
+button,select,input{
+padding:8px 12px;
+margin:5px;
+font-size:16px;
+border-radius:5px;
+border:none;
+}
 
-        select {
-            padding: 8px;
-            font-size: 16px;
-        }
-    </style>
+.controls button{
+width:60px;
+height:60px;
+font-size:22px;
+}
+
+#info{margin-top:10px;font-size:18px;}
+</style>
 </head>
 <body>
 
-<h1>🎯 English Sentence Learning Game</h1>
+<h1>🐍 Grammar Snake - 6 Levels</h1>
 
 <select id="levelSelect">
-    <option value="1">Level 1 - Basic</option>
-    <option value="2">Level 2 - Daily Use</option>
-    <option value="3">Level 3 - Conversation</option>
-    <option value="4">Level 4 - Intermediate</option>
-    <option value="5">Level 5 - Advanced</option>
-    <option value="6">Level 6 - Professional</option>
+<option value="1">Level 1 - Simple Present</option>
+<option value="2">Level 2 - Simple Past</option>
+<option value="3">Level 3 - Future</option>
+<option value="4">Level 4 - Passive Voice</option>
+<option value="5">Level 5 - Direct Speech</option>
+<option value="6">Level 6 - Complex Sentences</option>
 </select>
 
-<button onclick="loadLevel()">Start</button>
+<button onclick="startGame()">Start</button>
 
-<div class="box" id="gameBox" style="display:none;">
-    <h2 id="englishSentence"></h2>
-    <h3 id="tamilMeaning" style="display:none;color:green;"></h3>
-    <button onclick="showMeaning()">Show Meaning</button>
-    <button onclick="nextSentence()">Next</button>
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="info"></div>
+
+<button onclick="togglePause()">⏸ Pause / Resume</button><br>
+
+Speed:
+<input type="range" id="speedControl" min="60" max="300" value="150">
+
+<div class="controls">
+<br>
+<button onclick="changeDir('up')">↑</button><br>
+<button onclick="changeDir('left')">←</button>
+<button onclick="changeDir('down')">↓</button>
+<button onclick="changeDir('right')">→</button>
 </div>
-
-<script src="level1.js"></script>
-<script src="level2.js"></script>
-<script src="level3.js"></script>
-<script src="level4.js"></script>
-<script src="level5.js"></script>
-<script src="level6.js"></script>
 
 <script>
 
-let currentLevel = 1;
-let currentIndex = 0;
-let currentData = [];
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-function loadLevel() {
-    currentLevel = document.getElementById("levelSelect").value;
-    currentIndex = 0;
+let box=20;
+let snake;
+let direction;
+let words=[];
+let currentSentence="";
+let tamilMeaning="";
+let score=0;
+let level=1;
+let running=false;
+let interval;
+let sentenceCount=0;
 
-    if (currentLevel == 1) currentData = level1;
-    if (currentLevel == 2) currentData = level2;
-    if (currentLevel == 3) currentData = level3;
-    if (currentLevel == 4) currentData = level4;
-    if (currentLevel == 5) currentData = level5;
-    if (currentLevel == 6) currentData = level6;
+const subjects=["He","She","They","We","Ravi","The teacher","My brother"];
+const verbsPresent=["plays","reads","writes","eats","drinks","runs","watches"];
+const verbsPast=["played","read","wrote","ate","drank","ran","watched"];
+const verbsFuture=["will play","will read","will write","will eat","will drink","will run"];
+const objects=["football","a book","rice","water","the movie","cricket","homework"];
 
-    document.getElementById("gameBox").style.display = "block";
-    showSentence();
+function generateSentence(){
+let s=subjects[Math.floor(Math.random()*subjects.length)];
+let o=objects[Math.floor(Math.random()*objects.length)];
+
+if(level==1){
+let v=verbsPresent[Math.floor(Math.random()*verbsPresent.length)];
+currentSentence=s+" "+v+" "+o+".";
+}
+else if(level==2){
+let v=verbsPast[Math.floor(Math.random()*verbsPast.length)];
+currentSentence=s+" "+v+" "+o+".";
+}
+else if(level==3){
+let v=verbsFuture[Math.floor(Math.random()*verbsFuture.length)];
+currentSentence=s+" "+v+" "+o+".";
+}
+else if(level==4){
+currentSentence=o+" is eaten by "+s+".";
+}
+else if(level==5){
+currentSentence=s+' said, "I am happy."';
+}
+else{
+currentSentence="Although "+s+" was tired, "+s+" completed the work.";
 }
 
-function showSentence() {
-    document.getElementById("englishSentence").innerText =
-        currentData[currentIndex].eng;
-    document.getElementById("tamilMeaning").style.display = "none";
+tamilMeaning="தமிழ் பொருள்: "+currentSentence; 
+words=currentSentence.replace(/[.,"]/g,"").split(" ");
+shuffle(words);
 }
 
-function showMeaning() {
-    document.getElementById("tamilMeaning").innerText =
-        currentData[currentIndex].tam;
-    document.getElementById("tamilMeaning").style.display = "block";
+function shuffle(arr){
+for(let i=arr.length-1;i>0;i--){
+let j=Math.floor(Math.random()*(i+1));
+[arr[i],arr[j]]=[arr[j],arr[i]];
+}
 }
 
-function nextSentence() {
-    currentIndex++;
-    if (currentIndex >= currentData.length) {
-        alert("🎉 Level Completed!");
-        currentIndex = 0;
-    }
-    showSentence();
+function startGame(){
+level=parseInt(document.getElementById("levelSelect").value);
+snake=[{x:9*box,y:9*box}];
+direction="";
+score=0;
+sentenceCount=0;
+running=true;
+generateSentence();
+if(interval) clearInterval(interval);
+interval=setInterval(draw,document.getElementById("speedControl").value);
 }
+
+function togglePause(){
+running=!running;
+}
+
+function changeDir(dir){
+direction=dir;
+}
+
+document.addEventListener("keydown",e=>{
+if(e.key=="ArrowUp")direction="up";
+if(e.key=="ArrowDown")direction="down";
+if(e.key=="ArrowLeft")direction="left";
+if(e.key=="ArrowRight")direction="right";
+});
+
+function draw(){
+if(!running)return;
+
+ctx.fillStyle="#0d2b45";
+ctx.fillRect(0,0,400,400);
+
+for(let i=0;i<snake.length;i++){
+ctx.fillStyle=i==0?"yellow":"lime";
+ctx.fillRect(snake[i].x,snake[i].y,box,box);
+}
+
+let headX=snake[0].x;
+let headY=snake[0].y;
+
+if(direction=="left")headX-=box;
+if(direction=="right")headX+=box;
+if(direction=="up")headY-=box;
+if(direction=="down")headY+=box;
+
+let wordPositions=[];
+for(let i=0;i<words.length;i++){
+let wx=(i*70)%380;
+let wy=50+Math.floor(i/5)*50;
+ctx.fillStyle="red";
+ctx.fillRect(wx,wy,60,30);
+ctx.fillStyle="white";
+ctx.fillText(words[i],wx+5,wy+20);
+wordPositions.push({word:words[i],x:wx,y:wy});
+}
+
+for(let wp of wordPositions){
+if(headX==wp.x && headY==wp.y){
+let correct=currentSentence.replace(/[.,"]/g,"").split(" ")[sentenceCount];
+if(wp.word==correct){
+snake.unshift({x:headX,y:headY});
+sentenceCount++;
+score++;
+if(sentenceCount==currentSentence.replace(/[.,"]/g,"").split(" ").length){
+sentenceCount=0;
+generateSentence();
+}
+}else{
+alert("Wrong word! Game Over");
+clearInterval(interval);
+}
+}
+}
+
+snake.pop();
+snake.unshift({x:headX,y:headY});
+
+document.getElementById("info").innerHTML=
+"Level: "+level+
+"<br>Score: "+score+
+"<br><b>Correct Sentence:</b> "+currentSentence+
+"<br>"+tamilMeaning;
+}
+
+document.getElementById("speedControl").addEventListener("input",function(){
+if(interval){
+clearInterval(interval);
+interval=setInterval(draw,this.value);
+}
+});
 
 </script>
 
