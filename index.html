@@ -1,279 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Grammar Snake</title>
-<style>
-body{
-    text-align:center;
-    background:linear-gradient(to bottom,#0d47a1,#1976d2);
-    color:white;
-    font-family:Arial;
-}
-canvas{
-    background:#001f3f;
-    border:5px solid #00e5ff;
-    margin-top:20px;
-}
-button{
-    padding:10px 20px;
-    font-size:16px;
-    margin:10px;
-}
-input[type=range]{
-    width:200px;
-}
-</style>
+    <title>English Learning Game</title>
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            color: white;
+            padding: 20px;
+        }
+
+        .box {
+            background: white;
+            color: black;
+            padding: 20px;
+            margin: auto;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
 
-<h1>🐍 Grammar Snake</h1>
-<canvas id="game" width="400" height="400"></canvas>
+<h1>🎯 English Sentence Learning Game</h1>
 
-<h2 id="level">Level: 1</h2>
-<h2 id="score">Score: 0</h2>
+<select id="levelSelect">
+    <option value="1">Level 1 - Basic</option>
+    <option value="2">Level 2 - Daily Use</option>
+    <option value="3">Level 3 - Conversation</option>
+    <option value="4">Level 4 - Intermediate</option>
+    <option value="5">Level 5 - Advanced</option>
+    <option value="6">Level 6 - Professional</option>
+</select>
 
-<h3 id="sentence"></h3>
-<h3 id="meaning"></h3>
+<button onclick="loadLevel()">Start</button>
 
-<button onclick="togglePause()">⏯ Pause / Resume</button>
+<div class="box" id="gameBox" style="display:none;">
+    <h2 id="englishSentence"></h2>
+    <h3 id="tamilMeaning" style="display:none;color:green;"></h3>
+    <button onclick="showMeaning()">Show Meaning</button>
+    <button onclick="nextSentence()">Next</button>
+</div>
 
-<br>
-<h3>Speed Control</h3>
-<input type="range" min="60" max="300" value="200" id="speedControl">
-
-<br><br>
-
-<button onclick="setDir('UP')">↑</button><br>
-<button onclick="setDir('LEFT')">←</button>
-<button onclick="setDir('DOWN')">↓</button>
-<button onclick="setDir('RIGHT')">→</button>
+<script src="level1.js"></script>
+<script src="level2.js"></script>
+<script src="level3.js"></script>
+<script src="level4.js"></script>
+<script src="level5.js"></script>
+<script src="level6.js"></script>
 
 <script>
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let currentLevel = 1;
+let currentIndex = 0;
+let currentData = [];
 
-let box=20;
-let snake=[{x:200,y:200}];
-let dir="RIGHT";
-let words=[];
-let wordIndex=0;
-let score=0;
-let level=1;
-let completed=0;
-let paused=false;
-let speed=200;
-let food=null;
+function loadLevel() {
+    currentLevel = document.getElementById("levelSelect").value;
+    currentIndex = 0;
 
-const sentenceBank = {
-1:[
-"He goes to school",
-"They play cricket",
-"She reads a book",
-"We watch television",
-"The sun rises in the east",
-"I drink milk daily",
-"Birds fly in the sky",
-"She writes neatly",
-"The dog barks loudly",
-"We learn English",
-"He drives carefully",
-"The baby cries loudly",
-"Students study hard",
-"She cooks dinner",
-"I wake up early"
-],
-2:[
-"He went to school",
-"They played football",
-"She cooked dinner",
-"We visited Chennai",
-"I finished my homework",
-"The train arrived late",
-"She bought a pen",
-"He wrote a letter",
-"They watched a movie",
-"The baby slept early",
-"She cleaned the room",
-"I lost my key",
-"He found his wallet",
-"We enjoyed the trip",
-"She sang beautifully"
-],
-3:[
-"He will go tomorrow",
-"They will attend class",
-"She will call you",
-"We will finish soon",
-"I will help you",
-"She will buy fruits",
-"The bus will arrive soon",
-"He will complete the work",
-"They will win the match",
-"We will celebrate today",
-"I will learn Python",
-"She will teach English",
-"He will repair the bike",
-"They will travel abroad",
-"We will start early"
-],
-4:[
-"The letter was written by him",
-"The cake was baked by her",
-"The match was won by them",
-"The homework was completed by me",
-"The song was sung by her",
-"The house was built by workers",
-"The book was read by students",
-"The door was opened by him",
-"The car was washed by Ravi",
-"The problem was solved by her",
-"The exam was conducted yesterday",
-"The road was repaired last week",
-"The project was approved",
-"The work was finished on time",
-"The prize was given to her"
-],
-5:[
-"He said I am tired",
-"She said I will come tomorrow",
-"They said we won the match",
-"He told me that he was tired",
-"She told him that she would come",
-"They said that they had won",
-"She said I like coffee",
-"He said I finished the work",
-"She told me that she liked tea",
-"He told her that he had arrived",
-"She said I am happy",
-"He told us that he was ready",
-"They said we are studying",
-"She said that she was studying",
-"He said I will call you",
-"She told him that she would help",
-"They said that they were busy",
-"He said I love music",
-"She told me that she loved dancing",
-"He said that he had completed it"
-],
-6:[
-"If it rains we will stay home",
-"She has completed her project",
-"He has been working since morning",
-"They were playing when I arrived",
-"She had finished before he came",
-"I have never seen that movie",
-"He is being trained by experts",
-"The work has been completed",
-"She was cooking while he was studying",
-"If you study hard you will succeed",
-"He has visited Delhi twice",
-"They had left before we reached",
-"She is learning French",
-"The baby has been sleeping",
-"He was promoted last year",
-"She has written three books",
-"We had completed the task",
-"The machine is operated carefully",
-"He has been selected for the team",
-"They are planning a trip"
-]
-};
+    if (currentLevel == 1) currentData = level1;
+    if (currentLevel == 2) currentData = level2;
+    if (currentLevel == 3) currentData = level3;
+    if (currentLevel == 4) currentData = level4;
+    if (currentLevel == 5) currentData = level5;
+    if (currentLevel == 6) currentData = level6;
 
-function loadSentence(){
-    let arr = sentenceBank[level];
-    let random = arr[Math.floor(Math.random()*arr.length)];
-    words = random.split(" ");
-    wordIndex=0;
-    document.getElementById("sentence").innerHTML="Correct Sentence: "+random;
-    document.getElementById("meaning").innerHTML="Tamil Meaning: "+random+" (தமிழில் அர்த்தம்)";
-    spawnFood();
+    document.getElementById("gameBox").style.display = "block";
+    showSentence();
 }
 
-function spawnFood(){
-    food={
-        x:Math.floor(Math.random()*20)*box,
-        y:Math.floor(Math.random()*20)*box,
-        word:words[wordIndex]
-    };
+function showSentence() {
+    document.getElementById("englishSentence").innerText =
+        currentData[currentIndex].eng;
+    document.getElementById("tamilMeaning").style.display = "none";
 }
 
-function draw(){
-    if(paused) return;
+function showMeaning() {
+    document.getElementById("tamilMeaning").innerText =
+        currentData[currentIndex].tam;
+    document.getElementById("tamilMeaning").style.display = "block";
+}
 
-    ctx.fillStyle="#001f3f";
-    ctx.fillRect(0,0,400,400);
-
-    snake.forEach((s,i)=>{
-        ctx.fillStyle=i==0?"yellow":"green";
-        ctx.fillRect(s.x,s.y,box,box);
-    });
-
-    ctx.fillStyle="red";
-    ctx.fillRect(food.x,food.y,box,box);
-    ctx.fillStyle="white";
-    ctx.fillText(food.word,food.x+2,food.y+15);
-
-    let headX=snake[0].x;
-    let headY=snake[0].y;
-
-    if(dir=="LEFT") headX-=box;
-    if(dir=="RIGHT") headX+=box;
-    if(dir=="UP") headY-=box;
-    if(dir=="DOWN") headY+=box;
-
-    if(headX==food.x && headY==food.y){
-        speech(food.word);
-        snake.unshift({x:headX,y:headY});
-        wordIndex++;
-        score++;
-        document.getElementById("score").innerHTML="Score: "+score;
-
-        if(wordIndex>=words.length){
-            completed++;
-            if(completed>=3){
-                level++;
-                completed=0;
-                if(level>6){
-                    alert("🎉 You completed all levels!");
-                    level=1;
-                }
-            }
-            document.getElementById("level").innerHTML="Level: "+level;
-            loadSentence();
-        }else{
-            spawnFood();
-        }
-    }else{
-        snake.pop();
-        snake.unshift({x:headX,y:headY});
+function nextSentence() {
+    currentIndex++;
+    if (currentIndex >= currentData.length) {
+        alert("🎉 Level Completed!");
+        currentIndex = 0;
     }
-
-    if(headX<0||headY<0||headX>=400||headY>=400){
-        alert("Game Over");
-        location.reload();
-    }
+    showSentence();
 }
-
-function speech(word){
-    let utter=new SpeechSynthesisUtterance(word);
-    speechSynthesis.speak(utter);
-}
-
-function setDir(d){ dir=d; }
-
-function togglePause(){ paused=!paused; }
-
-document.getElementById("speedControl").addEventListener("input",function(){
-    speed=this.value;
-    clearInterval(game);
-    game=setInterval(draw,speed);
-});
-
-let game=setInterval(draw,speed);
-loadSentence();
 
 </script>
+
 </body>
 </html>
